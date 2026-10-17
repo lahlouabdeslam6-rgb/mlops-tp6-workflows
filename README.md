@@ -1,10 +1,27 @@
-# TP3 DVC - Versionner les donnees et rendre le pipeline reproductible
+# Pipeline ML reproductible · DVC & MLflow
 
 **Ismail Lahlou - AI - G6**
 
 Projet de detection de fraude bancaire reprenant les cinq scripts du TP2 et ajoute un pipeline DVC, un stockage distant local et deux runs MLflow lies aux empreintes exactes des donnees.
 
-## Resultats verifies
+## Objectif et données
+
+Ce projet académique suit la préparation, l'entraînement et l'évaluation d'un modèle de détection de fraude sur des **transactions synthétiques**, générées pour le TP. Il ne contient pas de données bancaires réelles.
+
+**Python · scikit-learn · DVC · MLflow · pandas**
+
+```mermaid
+flowchart LR
+    Data[Données synthétiques] --> Prep[Préparation]
+    Prep --> Train[Entraînement]
+    Train --> Eval[Évaluation]
+    Eval --> MLflow[Journalisation MLflow]
+    DVC[DVC : dépendances et versions] -.-> Prep
+    DVC -.-> Train
+    DVC -.-> Eval
+```
+
+## Résultats consignés lors du TP
 
 | Version | Transactions | Fraudes | Train / test | F1 | Precision | Rappel |
 |---|---:|---:|---|---:|---:|---:|
