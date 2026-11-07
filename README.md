@@ -1,81 +1,72 @@
-# Pipeline ML reproductible · DVC & MLflow
+# TP06 - Automatiser les workflows MLOps
 
-**Ismail Lahlou - AI - G6**
+**Zakaria Abdelbaki, Amine Khabot, Ismail Lahlou et Rayane Hafidi - AI, G6**
 
-Projet de detection de fraude bancaire reprenant les cinq scripts du TP2 et ajoute un pipeline DVC, un stockage distant local et deux runs MLflow lies aux empreintes exactes des donnees.
+[![pipeline-mlops](https://github.com/lahlouabdeslam6-rgb/mlops-tp6-workflows/actions/workflows/ci.yml/badge.svg)](https://github.com/lahlouabdeslam6-rgb/mlops-tp6-workflows/actions)
 
-## Objectif et données
+Suite du TP3 : DVC prépare, entraîne et évalue ; Prefect orchestre ces étapes,
+applique le seuil F1 et journalise une notification uniquement après acceptation.
+GitHub Actions contrôle chaque push dans un environnement Linux indépendant.
+Historique et tags du TP3 conservés. Voir [la provenance](ATTRIBUTION.md).
 
-Ce projet académique suit la préparation, l'entraînement et l'évaluation d'un modèle de détection de fraude sur des **transactions synthétiques**, générées pour le TP. Il ne contient pas de données bancaires réelles.
-
-**Python · scikit-learn · DVC · MLflow · pandas**
-
-```mermaid
-flowchart LR
-    Data[Données synthétiques] --> Prep[Préparation]
-    Prep --> Train[Entraînement]
-    Train --> Eval[Évaluation]
-    Eval --> MLflow[Journalisation MLflow]
-    DVC[DVC : dépendances et versions] -.-> Prep
-    DVC -.-> Train
-    DVC -.-> Eval
-```
-
-## Résultats consignés lors du TP
-
-| Version | Transactions | Fraudes | Train / test | F1 | Precision | Rappel |
-|---|---:|---:|---|---:|---:|---:|
-| v1 | 5000 | 568 | 3750 / 1250 | 0.8636 | 0.8769 | 0.8507 |
-| v2 | 7000 | 936 | 5250 / 1750 | 0.8423 | 0.8698 | 0.8166 |
-
-- v1 : `cf9f6f86c141e7df32c61715c493483f`, commit `2b73bc7`.
-- v2 : `ed3a72472f975230ea8e99161e7cd285`, commit `0ff8ecf`.
-- Configuration finale : 300 arbres, profondeur 12, random_state 42.
-- Bonus sur v2 : profondeur 8, F1 0.8493 ; profondeur 16, F1 0.8474.
-
-## Executer sous PowerShell
+## Installation (PowerShell)
 
 ```powershell
+git clone https://github.com/lahlouabdeslam6-rgb/mlops-tp6-workflows.git
+cd mlops-tp6-workflows
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-dvc pull
+python donnees.py
+python nouvelles_donnees.py
 dvc repro
-dvc dag
+python verifier_qualite.py
 ```
 
-Le remote `stockage` correspond au dossier voisin `../dvc-stockage`. Il reste local a la machine de l'auteur : un clone GitHub ne donne pas acces a ce stockage. Pour partager les objets DVC, il faut copier ce stockage ou configurer un remote partage et ses droits d'acces. En l'absence d'objets distants, `python donnees.py` regenere la v1, puis une seule execution de `python nouvelles_donnees.py` produit la v2 ; `dvc repro` reconstruit les sorties. Ne pas relancer ces generateurs sur un jeu que l'on veut conserver.
+Recréer la v1 avant chaque ajout v2 pour ne pas ajouter plusieurs fois les mêmes
+2 000 lignes. MLflow est omis de cet environnement : aucune étape TP6 ne l'utilise.
+Les scripts et l'historique MLflow du TP3 sont conservés.
+Le remote DVC local du TP3 peut être absent après clonage ; les scripts recréent
+alors les données, sans modifier le dépôt TP3 d'origine.
 
-## Consulter les versions
+## Prefect : trois terminaux
+
+Dans chaque terminal : ouvrir ce dossier et activer le venv.
+
+1. `prefect server start --host 127.0.0.1` (serveur et interface sur 4200).
+2. `$env:PREFECT_API_URL='http://127.0.0.1:4200/api'`, puis `python flow_mlops.py`.
+3. Même variable d'API, puis `python planifier.py` ; ouvrir Deployments et utiliser
+   **Run > Quick run** sur `reentrainement-fraude/hebdomadaire`.
+
+`serve` planifie le lundi à 6 h UTC. Garder le processus actif pour exécuter.
+Sans ce processus, un run manuel reste en attente. Les démonstrations sont mises
+en pause à la fin pour éviter une file d'attente sur une machine arrêtée.
+
+Pour le pool de processus, dans le terminal 2 :
 
 ```powershell
-git checkout v1
-dvc checkout
-(Import-Csv data/transactions.csv).Count # 5000
-git checkout main
-dvc checkout
-(Import-Csv data/transactions.csv).Count # 7000
+$env:TP6_PROJECT_DIR=(Get-Location).Path
+$env:PYTHONIOENCODING='utf-8'
+prefect work-pool create pool-tp --type process
+prefect --no-prompt deploy --name hebdomadaire-pool
 ```
 
-Si le cache est vide, utiliser `dvc pull` avec acces au stockage distant. Git versionne les scripts, tickets, parametres, dvc.lock et petites metriques ; les CSV, modeles, cache et base MLflow ne sont pas dans Git.
+Dans le terminal 3 : `prefect worker start --pool pool-tp --name worker-tp6`.
+Quick run du déploiement pool. Celui-ci suit le lundi à 6 h **Africa/Casablanca**.
+Redéployer après déplacement du clone : le chemin est résolu au déploiement.
 
-## MLflow
+## Qualité et intégration continue
 
-Dans un premier terminal :
+`max_depth: 12` est l'état normal ; `max_depth: 2` est l'essai volontairement
+dégradé. Le seuil est 0,82. Après l'essai, restaurer 12 et rejouer le flow.
+Pour la CI, le commit dégradé est annulé par `git revert`, sans réécriture.
+La notification du TP est un journal ; aucun message ou e-mail n'est envoyé.
 
-```powershell
-mlflow server --host 127.0.0.1 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlartifacts
-```
+Les rapports et preuves d'exécution sont dans `reports/`.
 
-Dans un second terminal active :
+## Dépôts du groupe (ordre demandé)
 
-```powershell
-$env:PYTHONIOENCODING = 'utf-8'
-python src/journaliser.py
-```
-
-L'experience `tp3-dvc` contient les deux runs historiques sur la machine d'origine. Chaque run conserve les tags `commit`, `donnees_md5`, `donnees_lignes`, les parametres et metriques, ainsi que `dvc.lock` en artefact. Relancer le script cree un run supplementaire. La base SQLite et les artefacts restent locaux.
-
-## Environnement observe
-
-Windows / PowerShell, Python 3.14.3, DVC 3.67.1, MLflow 3.17.1, scikit-learn 1.9.1, NumPy 2.5.4, pandas 3.0.6, matplotlib 3.11.2, joblib 1.6.0, PyYAML 6.0.3. Le fichier requirements.txt reprend les dependances du sujet ; ces versions documentent l'environnement de validation.
+1. Zakaria Abdelbaki : https://github.com/ZED-abd/TP06_Automatiser_Workflows_MLOps
+2. Amine Khabot : https://github.com/Amine-kh1/mlops-tp6-workflows
+3. Ismail Lahlou : https://github.com/lahlouabdeslam6-rgb/mlops-tp6-workflows
+4. Rayane Hafidi :

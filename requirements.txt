@@ -1,4 +1,4 @@
-mlflow
+# MLflow reste disponible dans le TP3 ; il n'est pas utilise par le TP6.
 scikit-learn
 pandas
 numpy
@@ -6,3 +6,4 @@ joblib
 pyyaml
 matplotlib
 dvc
+prefect>=3.9,<4

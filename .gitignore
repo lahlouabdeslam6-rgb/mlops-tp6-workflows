@@ -10,3 +10,6 @@ mlartifacts/
 mlruns/
 # Preferences locales de l'editeur
 .vscode/
+.prefect-local/
+*.pid
+reports/Lahlou_Ismail_AI_G6.pdf
